@@ -46,7 +46,8 @@ class CloudyDave:
                 self.setupConfig(config)
 
     def setupConfig(self, configDomain):
-            
+        # Add config to Simple DB for added cloudyness
+
         self.configDomain = self.sdb.create_domain(AWS_SDBDomainPrefix + '_config')
 
         if self.sdb.batch_put_attributes(self.configDomain, config) != True:
