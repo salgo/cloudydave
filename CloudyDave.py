@@ -3,74 +3,36 @@ import httplib, urllib2
 import boto
 from boto import sdb
 from boto.sdb import SDBRegionInfo
-from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBDomainPrefix, AWS_SDBRegion, config
-import pickle
+from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBDomainPrefix, AWS_SDBRegion, config, NotifyOnHostFailures, NotifyOnNumFailues
+from httplib import HTTPSConnection
+import smtplib
+import socket
 
 class CloudyDave:
     
     region = None
     sdb = None
-    configDomain = None
-    cpickle = None
+    hostname = None
     
     def __init__(self):
         self.region = boto.sdb.get_region(AWS_SDBRegion)
         self.sdb = boto.connect_sdb(aws_access_key_id=AWS_AccessKey, aws_secret_access_key=AWS_SecretKey, region=self.region)
-
-        if config:
-            self.cpickle = pickle.dumps(config)
-
-        self.config()
-        
-    def config(self):
-        # Check to see if configuration is already SimpleDB
-        
-        if self.sdb.lookup(AWS_SDBDomainPrefix + '_config', True) == None:
-            # Configuration isn't already in SimpleDB
-            
-            if cpickle == None:
-                # Configuration isn't defined in the config file so can't rebuild
-                raise Exception('config', 'no config defined')
-            
-            # Rebuild config
-            self.setupConfig(config)
-        else:
-            # Otherwise get config domain
-            self.configDomain = self.sdb.get_domain(AWS_SDBDomainPrefix + '_config')
-            
-            # Check config in SimpleDB is the same as config in config file
-            pitems = self.configDomain.get_item('_configpickle')
-            
-            if not(pitems) or self.cpickle != pitems['data']:
-                # If it isn't update config in SimpleDB
-                self.setupConfig(config)
-
-    def setupConfig(self, configDomain):
-        # Add config to Simple DB for added cloudyness
-
-        self.configDomain = self.sdb.create_domain(AWS_SDBDomainPrefix + '_config')
-
-        if self.sdb.batch_put_attributes(self.configDomain, config) != True:
-            return False
-        
-        self.configDomain.put_attributes('_configpickle', { 'data': self.cpickle })
-        
-        return True
+        self.hostname = socket.gethostname()
 
     def runChecks(self):
         # Process uptime checks
+        
+        for host in config:
+            item = config[host]
 
-        for item in self.configDomain:
-            if item.name == '_configpickle' or not('services' in item):
-                continue
-            
-            print item.name
+            # If there's more than one test it's an array
             
             if isinstance(item['services'], (list, tuple)):
                 for test_item in item['services']: 
-                    print self.runTest(item.name, test_item)
+                    self.runTest(host, test_item)
             else:
-                print self.runTest(item.name, item['services'])
+                # If there's only one test defined it might be a string
+                self.runTest(host, item['services'])
     
     def runTest(self, host, test):
         testParams = test.split(':')
@@ -79,9 +41,23 @@ class CloudyDave:
         del testParams[:1]
 
         if test == 'http':
-           return self.httpTest(host, testParams)
+            result = self.httpTest(host, testParams)
+        elif test == 'https':
+            result = self.httpsTest(host, testParams)
+        elif test == 'smtp': 
+            result = self.smtpTest(host, testParams)
+        else:
+            print "Don't know how to test '" + test + "'"
+            result = None
         
-        return None
+        self.logResult(host, test, testParams, result)
+        
+        return result
+
+    def logResult(self, host, test, params, result):
+        
+        print host + ": " + test + ": " + str(params) + ": " + str(result)
+        
 
     def httpTest(self, host, params):
         if len(params) == 0:
@@ -93,10 +69,52 @@ class CloudyDave:
             conn = httplib.HTTPConnection(host, params[0], params[1])
             conn.request('GET', '/', None, { 'User-Agent': 'Cloudy Dave' })
             response = conn.getresponse()
+            
+            status = getattr(response, 'status')
         
-            if getattr(response, 'status') == 200:
+            if status == 200 or status == 301 or status == 302:
                 return True
         except:
             pass
        
+        return False
+        
+    def httpsTest(self, host, params):
+        if len(params) == 0:
+            params.append(443)
+        if len(params) == 1:
+            params.append(10)
+
+        try:
+            conn = httplib.HTTPSConnection(host, params[0], None, None, None, params[1])
+            conn.request('GET', '/', None, { 'User-Agent': 'Cloudy Dave' })
+            response = conn.getresponse()
+            
+            status = getattr(response, 'status')
+        
+            if status == 200 or status == 301 or status == 302:
+                return True
+        except:
+            pass    
+                
+        return False
+
+    def smtpTest(self, host, params): 
+        
+        if len(params) == 0:
+            params.append(25)
+        if len(params) == 1:
+            params.append(10)
+        
+        try:        
+            server = smtplib.SMTP(host, params[0], self.hostname, params[1])
+            server.helo(self.hostname)
+            server.quit()
+            
+            return True
+        
+        except:
+            
+            pass
+        
         return False
