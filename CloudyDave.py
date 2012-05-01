@@ -8,6 +8,8 @@ from httplib import HTTPSConnection
 import smtplib
 import socket
 import datetime
+from copy import copy 
+import time
 
 class CloudyDave:
     
@@ -30,11 +32,15 @@ class CloudyDave:
                         
         self.testDateTime = datetime.datetime.utcnow()
         self.testDateTimeEpoc = self.testDateTime.strftime("%s")
-
+        
+        self.baseReport = {'fromhost': self.hostname,
+                           'timestamp': self.testDateTimeEpoc}
     def runChecks(self):
         # Process uptime checks
         for host in config:
             item = config[host]
+            
+            self.baseReport.update({'testhost': host})
             
             if isinstance(item, list):
                 for test in item:
@@ -52,93 +58,133 @@ class CloudyDave:
         if test == 'http':
             result = self.httpTest(host, params)
         elif test == 'https':
-            result = self.httpsTest(host, params)
+            result = self.httpTest(host, params, True)
         elif test == 'smtp': 
             result = self.smtpTest(host, params)
+        elif test == 'mysql-status':
+            result = self.mysqlStatusTest(host, params)
         else:
             print "Don't know how to test '" + test + "'"
             result = None
         
-        self.logResult(host, test, params, result)
-        
-        return result
-
-    def logResult(self, host, test, params, result):
-        
-        print "logResult:" + host + ": " + test + ": " + str(params) + ": " + str(result)  
-        
-        key = [ self.hostname, self.testDateTimeEpoc, host] 
+    # def logResult(self, host, test, params, result):
+    #             
+    #     key = [ self.hostname, self.testDateTimeEpoc, host] 
+    #         
+    #     string_params = []
+    # 
+    #     if 'host' in params:
+    #         del params['host']
+    # 
+    #     for item in params:
+    #         if item == 'password':
+    #             continue
+    #         key.append(item + ':' + str(params[item]))
+    #         string_params.append(item + ':' + str(params[item]))
+    #     
+    #     tkey = '/'.join(key)
+    #     
+    #     print tkey, result
+    #     
+    #     if isinstance(result, (dict)):
+    #         
+    #         for k in result:
+    #             ttkey = tkey + '/' + k
+    #             item = { 'fromhost': self.hostname,
+    #                      'timestamp': self.testDateTimeEpoc,
+    #                      'params': ':'.join(string_params), 
+    #                      'testhost': host, 
+    #                      'test': test,
+    #                      'testKey': k,
+    #                      'result': result[k] }
+    #             self._logResult(ttkey, item)
+    #     else:
+    #         item = { 'fromhost': self.hostname,
+    #                  'timestamp': self.testDateTimeEpoc,
+    #                  'params': ':'.join(string_params), 
+    #                  'testhost': host, 
+    #                  'test': test,
+    #                  'result': result }
+    #                  
+    #         self._logResult(tkey, item)
+    
+    def logResult(self, item):
+        tkey = []
+        for key in item:
+            tkey.append(key + ':' + unicode(item[key]))
+        tkey = '/'.join(tkey)
             
-        string_params = []
-
-        for item in params:
-            key.append(item + ':' + str(params[item]))
-            string_params.append(item + ':' + str(params[item]))
-        
-        tkey = '/'.join(key)
-        
-        print tkey
-        
-        item = { 'fromhost': self.hostname,
-                 'timestamp': self.testDateTimeEpoc,
-                 'params': ':'.join(string_params), 
-                 'testhost': host, 
-                 'test': test,
-                 'result': result }
-        
         if not(self.sdb.logDomain.put_attributes(tkey, item)):
             print "Unable to save results!"
     
     def getDomain(self):
         return self.sdb.logDomain
 
-    def httpTest(self, host, params):
-
+    def httpTest(self, host, params, secure=False):
+        
+        report = copy(self.baseReport)
+        result = {}
+        
+        if secure:
+            report['test'] = 'https'
+        else:
+            report['test'] = 'http'
+                    
         if not('port' in params):
-            params['port'] = 80
-
+            if secure:
+                params['port'] = 443
+            else:
+                params['port'] = 80
+        else:
+            report['test'] += ':' + unicode(params['port'])
+            
         if not('timeout' in params):
             params['timeout'] = 10
-
-        try:
-            conn = httplib.HTTPConnection(host, params['port'], params['timeout'])
-            conn.request('GET', '/', None, { 'User-Agent': 'Cloudy Dave' })
-            response = conn.getresponse()
-            
-            status = getattr(response, 'status')
-        
-            if status == 200 or status == 301 or status == 302:
-                return True
-        except:
-            pass
-       
-        return False
-        
-    def httpsTest(self, host, params):
-        if not('port' in params):
-            params['port'] = 443
-
-        if not('timeout' in params):
-            params['timeout'] = 10
-
-        try:
-            conn = httplib.HTTPSConnection(host, params['port'], None, None, None, params['timeout'])
-            conn.request('GET', '/', None, { 'User-Agent': 'Cloudy Dave' })
-            response = conn.getresponse()
-            
-            status = getattr(response, 'status')
-        
-            if status == 200 or status == 301 or status == 302:
-                return True
-        except:
-            pass    
                 
-        return False
+        try:
+            start = time.time()
+            
+            if secure:
+                conn = httplib.HTTPSConnection(host, params['port'], None, None, None, params['timeout'])
+            else:
+                conn = httplib.HTTPConnection(host, params['port'], params['timeout'])
+                
+            conn.request('GET', '/', None, { 'User-Agent': 'Cloudy Dave' })
+            response = conn.getresponse()
+            data = response.read()
+            ttlb = time.time() - start
+            
+            status = getattr(response, 'status')
+            
+            result['response_time'] = time.time() - start
+            result['status'] = status
+                
+            if status == 200 or status == 301 or status == 302:
+                if 'checkStr' in params:
+                    if parms['checkStr'] in data:
+                        result['result'] = True
+                    else:
+                        result['result'] = False
+                else:
+                    result['result'] = True
+
+        except:
+            result['result'] = False
+       
+        for key in result:
+            report.update({'key': key, 'value': result[key]})
+            self.logResult(report)
 
     def smtpTest(self, host, params): 
         
+        report = copy(self.baseReport)
+        report['key'] = 'result'
+        report['test'] = 'smtp'
+        
         if not('port' in params):
             params['port'] = 25
+        else:
+            report['test'] += ':' + unicode(params['port'])
 
         if not('timeout' in params):
             params['timeout'] = 10
@@ -148,10 +194,53 @@ class CloudyDave:
             server.helo(self.hostname)
             server.quit()
             
-            return True
+            report['value'] = True
         
         except:
+            report['value'] = False
             
-            pass
+        self.logResult(report)
+    
+    def mysqlStatusTest(self, host, params):
         
-        return False
+        report = copy(self.baseReport)
+        report['test'] = 'mysql-status'
+        result = {}
+        
+        if not('port' in params):
+            params['port'] = 3306
+        
+            try:
+                import MySQLdb
+				# Connect
+                try:
+                    db = MySQLdb.connect(host=host,
+					                     user=params['user'], 
+					                     passwd=params['password'])
+					
+                    cursor = db.cursor()
+                    cursor.execute("SHOW GLOBAL STATUS")
+                    tresult = cursor.fetchall()
+                    
+                    stats = ['Created_tmp_disk_tables', 'Connections', 
+                             'Max_used_connections', 'Open_files',
+                             'Slow_queries', 'Table_locks_waited',
+                             'Threads_connected']
+                    
+                    ret = {}
+                    
+                    for stat in tresult:
+                        if stat[0] in stats:
+                            result[stat[0]] = stat[1]
+                    
+                    result['result'] = True
+                    
+                except MySQLdb.OperationalError, message:
+                    result['result'] = False
+
+            except ImportError, e:
+                results['result'] = False
+
+        for key in result:
+            report.update({'key': key, 'value': result[key]})
+            self.logResult(report)
