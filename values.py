@@ -23,4 +23,7 @@ query = "SELECT * FROM " + domain.name + " WHERE timestamp > '0' " + query + " O
 rs = domain.select(query)
 
 for item in rs:
-    print "{},{}".format(item['timestamp'], item['value'])
+    dt = datetime.fromtimestamp(int(item['timestamp']))
+    date = dt.isoformat()
+    
+    print "{},{}".format(date, item['value'])
