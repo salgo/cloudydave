@@ -1,6 +1,7 @@
 from CloudyDave import CloudyDave
 from config import config
 from sys import argv
+from datetime import datetime
 
 cd = CloudyDave()
 domain = cd.getDomain()
@@ -26,4 +27,8 @@ rs = domain.select("SELECT * FROM " + domain.name + " WHERE timestamp > '0' " + 
 for item in rs:
     print "--"
     for key in item:
-        print key, '=', item[key]
+        if key == 'timestamp':
+            dt = datetime.fromtimestamp(int(item[key]))
+            print key, '=', dt.isoformat()
+        else:
+            print key, '=', item[key]
