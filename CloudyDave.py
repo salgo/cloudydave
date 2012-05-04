@@ -7,7 +7,7 @@ from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBDomainPrefix, AWS_SDBReg
 from httplib import HTTPSConnection
 import smtplib
 import socket
-import datetime
+from datetime import datetime
 from copy import copy 
 import time
 import subprocess
@@ -33,7 +33,7 @@ class CloudyDave:
         else:
             self.sdb.logDomain = self.sdb.get_domain('tests')
                         
-        self.testDateTime = datetime.datetime.utcnow()
+        self.testDateTime = datetime.utcnow()
         self.testDateTimeEpoc = self.testDateTime.strftime("%s")
         
         self.baseReport = {'fromhost': self.hostname,
@@ -268,3 +268,38 @@ class CloudyDave:
         for key in result:
             report.update({'key': key, 'value': result[key]})
             self.logResult(report)
+    
+    def commandArgs(self, args):
+        query = ""
+        limit = None
+        datefrom = False
+        dateto = False
+
+        args.pop(0) # <-- shift off cmd name
+
+        while len(args) > 1:
+            key = args.pop(0)
+            eq = args.pop(0)
+
+            if key == 'limit': 
+                limit = int(eq)
+                continue 
+
+            if key == 'datetime':
+                datefrom = eq + ' ' + args.pop(0)
+                dateto = args.pop(0) + ' ' + args.pop(0)
+                continue
+
+            value = args.pop(0)
+
+            query += ' AND ' + key + ' ' + eq + " '" + value + "'"
+
+        if datefrom and dateto:
+            timestamp_start = datetime.strptime(datefrom, "%Y-%m-%d %H:%M:%S")
+            timestamp_end = datetime.strptime(dateto, "%Y-%m-%d %H:%M:%S")
+            timestamp = " timestamp >= '" + timestamp_start.strftime("%s") + \
+                        "' AND timestamp <= '" + timestamp_end.strftime("%s") + "'"
+        else:
+             timestamp = " timestamp > '0'"
+        
+        return timestamp + query, limit

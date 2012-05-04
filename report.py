@@ -6,7 +6,8 @@ from datetime import datetime
 cd = CloudyDave()
 domain = cd.getDomain()
 
-query = "SELECT * FROM " + domain.name
+query, limit = cd.commandArgs(argv)
+query = "SELECT * FROM " + domain.name + " WHERE " + query
 
 rs = domain.select(query)
 
