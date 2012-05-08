@@ -1,5 +1,4 @@
 from CloudyDave import CloudyDave
-from config import config
 from sys import argv
 from datetime import datetime
 

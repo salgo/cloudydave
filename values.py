@@ -1,5 +1,4 @@
 from CloudyDave import CloudyDave
-from config import config
 from sys import argv
 from datetime import datetime
 
@@ -15,5 +14,5 @@ rs = domain.select(query)
 for item in rs:
     dt = datetime.fromtimestamp(int(item['timestamp']))
     date = dt.isoformat()
-    
+
     print "{},{}".format(date, item['value'])
