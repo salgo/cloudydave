@@ -257,3 +257,46 @@ class CloudyDave:
             timestamp = " timestamp > '0'"
 
         return timestamp + query, limit
+
+    def notifyInit(self):
+        """Assuming most clients don't want to use notify so don't init unless
+        we have to"""
+
+        if self.sdb.lookup('notify', True) == None:
+            self.sdb.create_domain('notify')
+
+        self.notifyDomain = self.sdb.get_domain('notify')
+
+    def notifyKey(self, testhost, notify):
+        nnkeya = [testhost]
+
+        for key in ['testhost', 'test', 'key', 'cmp', 'value']:
+            if key in notify:
+                nnkeya.append(unicode(notify[key]))
+
+        return '/'.join(nnkeya)
+
+    def notifyStatus(self, testhost, notify, failed):
+
+        nnkey = self.notifyKey(testhost, notify)
+
+        print nnkey, failed
+
+        data = self.notifyDomain.get_item(nnkey)
+
+        print data
+
+        if failed:
+            if data:
+                return False
+            else:
+                item = self.notifyDomain.new_item(nnkey)
+                item['a'] = True
+                item.save()
+                return True
+        else:
+            if data:
+                data.delete()
+                return True
+            else:
+                return False
