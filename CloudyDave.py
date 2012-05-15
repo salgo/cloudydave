@@ -280,11 +280,7 @@ class CloudyDave:
 
         nnkey = self.notifyKey(testhost, notify)
 
-        print nnkey, failed
-
         data = self.notifyDomain.get_item(nnkey)
-
-        print data
 
         if failed:
             if data:

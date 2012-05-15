@@ -66,7 +66,12 @@ for testhost in notify:
             else:
                 msg = 'recovered'
 
-            body = "{} on {}: {}".format(item['test'], testhost, msg)
+            if 'service' in test:
+                service = test['service']
+            else:
+                service = item['test']
+
+            body = "{} on {}: {}".format(service, testhost, msg)
 
             if not(DO_NOT_SEND_TEXTS):
                 client = TwilioRestClient(Twilio_AccountSID, Twilio_AuthToken)
