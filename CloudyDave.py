@@ -5,6 +5,7 @@ from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBRegion, config
 import smtplib
 import socket
 from datetime import datetime
+from datetime import timedelta
 from copy import copy
 import time
 import subprocess
@@ -74,6 +75,10 @@ class CloudyDave:
         return result
 
     def logResult(self, item):
+
+        if item['testhost'] == 'localhost':
+            item['testhost'] = item['fromhost']
+
         tkey = []
         for key in item:
             tkey.append(key + ':' + unicode(item[key]))
@@ -257,6 +262,75 @@ class CloudyDave:
             timestamp = " timestamp > '0'"
 
         return timestamp + query, limit
+
+    def reportAgo(self, seconds_ago=120):
+        """Get list of available results in the last seconds_ago seconds"""
+        nowdt = datetime.utcnow()
+        beforedt = nowdt - timedelta(seconds=seconds_ago)
+        return self.report(beforedt, nowdt)
+
+    def report(self, startdt, enddt):
+        """Get list of available results in between the startdt and enddt"""
+
+        domain = self.sdb.logDomain
+
+        timestamp = " timestamp >= '" + startdt.strftime("%s") + \
+                    "' AND timestamp <= '" + enddt.strftime("%s") + "'"
+
+        query = "SELECT * FROM " + domain.name + " WHERE " + timestamp
+
+        rs = domain.select(query)
+
+        uniques = {}
+        unique_fields = ['fromhost', 'testhost', 'test', ('test', 'key')]
+
+        for item in rs:
+
+            for field in unique_fields:
+                if isinstance(field, tuple):
+                    key = field[0] + '/' + field[1]
+                else:
+                    key = field
+
+                if not(key in uniques):
+                    uniques[key] = []
+
+                if isinstance(field, tuple):
+
+                    value = item[field[0]] + '/' + item[field[1]]
+                else:
+                    value = item[field]
+
+                if not(value in uniques[key]):
+                    uniques[key].append(value)
+
+        return uniques
+
+    def graphQuery(self, startdt, enddt, **kwargs):
+        """Perform query for graphing"""
+
+        domain = self.sdb.logDomain
+
+        where = ''
+
+        for kwarg in kwargs:
+            where += "{} = '{}' AND ".format(kwarg, kwargs[kwarg])
+
+        timestamp = " timestamp >= '" + startdt.strftime("%s") + \
+                    "' AND timestamp <= '" + enddt.strftime("%s") + "'"
+
+        query = "SELECT * FROM " + domain.name + " WHERE " + where + timestamp + ' ORDER BY timestamp'
+
+        rs = domain.select(query)
+
+        data = []
+
+        for item in rs:
+            dt = datetime.fromtimestamp(int(item['timestamp']))
+            date = dt.strftime("%s")
+            data.append([date, item['value']])
+
+        return data
 
     def notifyInit(self):
         """Assuming most clients don't want to use notify so don't init unless
