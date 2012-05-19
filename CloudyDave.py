@@ -1,3 +1,5 @@
+from __future__ import division
+
 import httplib
 import boto
 from boto import sdb
@@ -316,6 +318,12 @@ class CloudyDave:
         for kwarg in kwargs:
             where += "{} = '{}' AND ".format(kwarg, kwargs[kwarg])
 
+        data_is_difference = False
+
+        if 'test' in kwargs and 'key' in kwargs:
+            if kwargs['test'] == 'mysql-status' and kwargs['key'] == 'Connections':
+                data_is_difference = True
+
         timestamp = " timestamp >= '" + startdt.strftime("%s") + \
                     "' AND timestamp <= '" + enddt.strftime("%s") + "'"
 
@@ -325,10 +333,24 @@ class CloudyDave:
 
         data = []
 
+        previous = None
         for item in rs:
+            if data_is_difference:
+                if previous is None:
+                    # Need a difference so can't show the first match
+                    previous = float(item['value'])
+                    continue
+                else:
+                    fval = float(item['value'])
+                    value = (fval - previous) / 60
+                    previous = fval
+            else:
+                value = item['value']
+
             dt = datetime.fromtimestamp(int(item['timestamp']))
             date = dt.strftime("%s")
-            data.append([date, item['value']])
+
+            data.append([date, value])
 
         return data
 
