@@ -1,0 +1,7 @@
+Cloudy Dave is a server monitoring tool for the cloud environment.
+
+Various hosts can be configure per host to do various tests of both themselves and services on other hosts
+
+Currently, data is stored in Amazon Web Services Simple DB system. Alerts are sent with Twillio.
+
+It's at the very stages and although I have had running on a few hosts I'd use something else for now.
