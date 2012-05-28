@@ -3,7 +3,11 @@ from __future__ import division
 import httplib
 import boto
 from boto import sdb
-from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBRegion, config
+from config import AWS_AccessKey, AWS_SecretKey, AWS_SDBRegion, config, AWS_SDBRetryAttempts
+from config import Twilio_AccountSID
+from config import Twilio_AuthToken
+from config import Twilio_SendNumber
+from config import Twilio_RetryAttempts
 import smtplib
 import socket
 from datetime import datetime
@@ -13,6 +17,12 @@ import time
 import subprocess
 import traceback
 import re
+
+from twilio.rest import TwilioRestClient
+
+
+# Useful when one is testing :)
+DO_NOT_SEND_TEXTS = False
 
 
 class CloudyDave:
@@ -343,6 +353,8 @@ class CloudyDave:
                 else:
                     fval = float(item['value'])
                     value = (fval - previous) / 60
+                    if value < 0:
+                        value = 0
                     previous = fval
             else:
                 value = item['value']
@@ -392,3 +404,96 @@ class CloudyDave:
                 return True
             else:
                 return False
+
+    def notifyCheck(self, testhost, test):
+        """Process notification checks and send SMS, emails and whatever else if they are required"""
+
+        domain = self.getDomain()
+
+        query = "SELECT * FROM {} WHERE timestamp > '0' AND ".format(domain.name)
+
+        if 'testhost' in test:
+            # As test host is specified the host specified in the notify is actually the fromhost
+            query += " fromhost = '{}' AND testhost = '{}'".format(testhost, test['testhost'])
+        else:
+            query += "testhost = '{}'".format(testhost)
+
+        query += " AND test = '{}' AND key = '{}' ORDER BY timestamp DESC".format(test['test'], test['key'])
+
+        rs = domain.select(query, max_items=1)
+
+        retries = 0
+
+        failed = False
+
+        while retries < AWS_SDBRetryAttempts:
+            try:
+                for item in rs:
+                    if not('cmp' in test) or test['cmp'] == '=':
+                        if item['value'] == test['value']:
+                            failed = True
+                    else:
+                        # number compares
+                        test_value = float(test['value'])
+                        actual_value = float(item['value'])
+
+                        if test['cmp'] == '>':
+                            if actual_value > test_value:
+                                failed = True
+                        elif test['cmp'] == '>=':
+                            if actual_value >= test_value:
+                                failed = True
+                        elif test['cmp'] == '<':
+                            if actual_value < test_value:
+                                failed = True
+                        elif test['cmp'] == '<=':
+                            if actual_value <= test_value:
+                                failed = True
+                break
+            except boto.exception.SDBResponseError:
+                print query, 'SDBResponseError: ', retries
+                time.sleep(1)
+                retries += 1
+
+        if retries == AWS_SDBRetryAttempts:
+            print "SBD timeout after", AWS_SDBRetryAttempts, "attempts"
+            return
+
+        send_notify = self.notifyStatus(testhost, test, failed)
+        send_notify = True
+        if send_notify:
+
+            if failed:
+                if 'message' in test:
+                    msg = test['message']
+                else:
+                    msg = 'failed'
+            else:
+                msg = 'recovered'
+
+            if 'service' in test:
+                service = test['service']
+            else:
+                service = test['test']
+
+            body = "{} on {}: {}".format(service, testhost, msg)
+
+            if not(DO_NOT_SEND_TEXTS):
+                retries = 0
+                while retries < Twilio_RetryAttempts:
+                    try:
+                        print "attempting to send", Twilio_SendNumber, body
+                        client = TwilioRestClient(Twilio_AccountSID, Twilio_AuthToken)
+                        client.sms.messages.create(to=test['notify-number'],
+                                                   from_=Twilio_SendNumber,
+                                                   body=body)
+                        break
+                    except Exception:
+                        print "TwilioRestClient timeout", retries
+                        retries += 1
+                        time.sleep(1)
+
+                if retries == Twilio_RetryAttempts:
+                    print "Unable to send SMS after", Twilio_RetryAttempts, "attempts"
+
+            print body
