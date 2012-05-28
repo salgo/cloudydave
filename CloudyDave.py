@@ -460,7 +460,6 @@ class CloudyDave:
             return
 
         send_notify = self.notifyStatus(testhost, test, failed)
-        send_notify = True
         if send_notify:
 
             if failed:
