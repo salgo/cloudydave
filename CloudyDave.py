@@ -451,7 +451,7 @@ class CloudyDave:
                                 failed = True
                 break
             except boto.exception.SDBResponseError:
-                print query, 'SDBResponseError: ', retries
+                # print query, 'SDBResponseError: ', retries
                 time.sleep(1)
                 retries += 1
 
@@ -488,7 +488,7 @@ class CloudyDave:
                                                    body=body)
                         break
                     except Exception:
-                        print "TwilioRestClient timeout", retries
+                        # print "TwilioRestClient timeout", retries
                         retries += 1
                         time.sleep(1)
 
