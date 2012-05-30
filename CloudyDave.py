@@ -8,21 +8,25 @@ from config import Twilio_AccountSID
 from config import Twilio_AuthToken
 from config import Twilio_SendNumber
 from config import Twilio_RetryAttempts
-import smtplib
 import socket
 from datetime import datetime
 from datetime import timedelta
 from copy import copy
 import time
-import subprocess
-import traceback
-import re
+
 
 from twilio.rest import TwilioRestClient
 
 
 # Useful when one is testing :)
 DO_NOT_SEND_TEXTS = False
+
+try:
+    checkmodules_available = True
+    from checks import *
+    from checks import __all__ as checkModules
+except ImportError:
+    checkmodules_available = False
 
 
 class CloudyDave:
@@ -33,6 +37,7 @@ class CloudyDave:
     logDomain = None
     testDateTime = None
     testDateTimeEpoc = None
+    checkModules = None
 
     def __init__(self):
         self.region = boto.sdb.get_region(AWS_SDBRegion)
@@ -50,6 +55,17 @@ class CloudyDave:
         self.baseReport = {'fromhost': self.hostname,
                            'timestamp': self.testDateTimeEpoc}
 
+        self.checkModules = self.registerCheckModules()
+
+    def registerCheckModules(self):
+        if checkmodules_available:
+            return checkModules
+        else:
+            return []
+
+    def log(self, level, msg):
+        print level, msg
+
     def runChecks(self):
         # Process uptime checks
         for host in config:
@@ -63,6 +79,8 @@ class CloudyDave:
                         self.runTest(host, test['test'], test)
                     else:
                         self.runTest(host, test)
+            elif isinstance(item, (dict)):
+                self.runTest(host, item['test'], item)
             else:
                 self.runTest(host, item)
 
@@ -74,12 +92,9 @@ class CloudyDave:
             result = self.httpTest(host, params)
         elif test == 'https':
             result = self.httpTest(host, params, True)
-        elif test == 'smtp':
-            result = self.smtpTest(host, params)
-        elif test == 'mysql-status':
-            result = self.mysqlStatusTest(host, params)
-        elif test == 'uptime':
-            result = self.uptimeTest()
+        elif test in self.checkModules:
+            checktest = eval(test)
+            result = checktest.test(self, host, params)
         else:
             print "Don't know how to test '" + test + "'"
             result = None
@@ -150,90 +165,6 @@ class CloudyDave:
                     result['result'] = True
 
         except:
-            result['result'] = False
-
-        for key in result:
-            report.update({'key': key, 'value': result[key]})
-            self.logResult(report)
-
-    def smtpTest(self, host, params):
-
-        report = copy(self.baseReport)
-        report['key'] = 'result'
-        report['test'] = 'smtp'
-
-        if not('port' in params):
-            params['port'] = 25
-        else:
-            report['test'] += ':' + unicode(params['port'])
-
-        if not('timeout' in params):
-            params['timeout'] = 10
-
-        try:
-            server = smtplib.SMTP(host, params['port'], self.hostname, params['timeout'])
-            server.helo(self.hostname)
-            server.quit()
-
-            report['value'] = True
-
-        except:
-            report['value'] = False
-
-        self.logResult(report)
-
-    def mysqlStatusTest(self, host, params):
-
-        report = copy(self.baseReport)
-        report['test'] = 'mysql-status'
-        result = {}
-
-        if not('port' in params):
-            params['port'] = 3306
-
-            try:
-                import MySQLdb
-                try:
-                    db = MySQLdb.connect(host=host,
-                                         user=params['user'],
-                                         passwd=params['password'])
-                    cursor = db.cursor()
-                    cursor.execute("SHOW GLOBAL STATUS")
-                    tresult = cursor.fetchall()
-
-                    stats = ['Created_tmp_disk_tables', 'Connections',
-                             'Max_used_connections', 'Open_files',
-                             'Slow_queries', 'Table_locks_waited',
-                             'Threads_connected']
-
-                    for stat in tresult:
-                        if stat[0] in stats:
-                            result[stat[0]] = stat[1]
-
-                    result['result'] = True
-
-                except MySQLdb.OperationalError:
-                    result['result'] = False
-
-            except ImportError:
-                result['result'] = False
-
-        for key in result:
-            report.update({'key': key, 'value': result[key]})
-            self.logResult(report)
-
-    def uptimeTest(self):
-        report = copy(self.baseReport)
-        report['test'] = 'uptime'
-        result = {}
-
-        try:
-            proc = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True)
-            uptime = proc.communicate()[0]
-            loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
-            result = {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2], 'result': True}
-        except Exception:
-            print traceback.format_exc()
             result['result'] = False
 
         for key in result:
@@ -451,7 +382,6 @@ class CloudyDave:
                                 failed = True
                 break
             except boto.exception.SDBResponseError:
-                # print query, 'SDBResponseError: ', retries
                 time.sleep(1)
                 retries += 1
 
