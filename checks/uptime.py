@@ -9,11 +9,14 @@ def test(cd, host, params):
     report['test'] = 'uptime'
     result = {}
 
+    resultBool = False
+
     try:
         proc = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True)
         uptime = proc.communicate()[0]
         loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
         result = {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2], 'result': True}
+        resultBool = True
     except Exception:
         print traceback.format_exc()
         result['result'] = False
@@ -21,3 +24,5 @@ def test(cd, host, params):
     for key in result:
         report.update({'key': key, 'value': result[key]})
         cd.logResult(report)
+
+    return resultBool
