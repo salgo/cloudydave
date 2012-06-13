@@ -31,13 +31,21 @@ class cloudydave:
         except ImportError:
             pass
 
+    def log(self, msg):
+        print "cloudydave::log:", msg
+
     def run_checks(self):
         """Parse various config formats and call each check"""
 
         for host in self.checks:
             item = self.checks[host]
 
-            self.basereport = {'testhost': host}
+            if host == 'localhost':
+                # No need to store it's localhost as the test host,
+                # that's assumed
+                self.basereport = {}
+            else:
+                self.basereport = {'testhost': host}
 
             if isinstance(item, list):
                 for check in item:

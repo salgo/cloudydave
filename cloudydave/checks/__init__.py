@@ -1,3 +1,3 @@
 """Lists all of the importable check modules"""
 
-__all__ = ['uptime']
+__all__ = ['uptime', 'smtp', 'mysqlstatus']
