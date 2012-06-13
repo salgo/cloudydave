@@ -48,14 +48,14 @@ def httpcheck(cd, host, params, secure=False):
         result['response_time'] = time.time() - start
         result['status'] = status
 
-        if status == 200 or status == 301 or status == 302:
-            if 'checkStr' in params:
-                if params['checkStr'] in data:
-                    result['result'] = True
+        if ('status' in params and status == params['status']) or\
+           (status == 200 or status == 301 or status == 302):
+            if 'check_str' in params:
+                if params['check_str'] in data:
+                    result['check_str'] = True
                 else:
-                    result['result'] = False
-            else:
-                result['result'] = True
+                    result['check_str'] = False
+            result['result'] = True
 
     except:
         result['result'] = False
