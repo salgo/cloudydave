@@ -11,7 +11,7 @@ class MysqlstatusCheck(object):
             return False
 
         report = copy(cd.basereport)
-        report['test'] = 'mysqlstatus'
+        report['check'] = 'mysqlstatus'
         result = {}
 
         bresult = False

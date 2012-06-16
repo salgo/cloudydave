@@ -6,12 +6,12 @@ class SmtpCheck(object):
     def test(self, cd, host, params):
         report = copy(cd.basereport)
         report['key'] = 'result'
-        report['test'] = 'smtp'
+        report['check'] = 'smtp'
 
         if not('port' in params):
             params['port'] = 25
         else:
-            report['test'] += ':' + unicode(params['port'])
+            report['check'] += ':' + unicode(params['port'])
 
         if not('timeout' in params):
             params['timeout'] = 10

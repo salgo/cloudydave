@@ -7,7 +7,7 @@ import re
 class UptimeCheck(object):
     def test(self, cd, host, params):
         report = copy(cd.basereport)
-        report['test'] = 'uptime'
+        report['check'] = 'uptime'
         result = {}
 
         resultBool = False

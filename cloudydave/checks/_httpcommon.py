@@ -14,9 +14,9 @@ def httpcheck(cd, host, params, secure=False):
     result = {}
 
     if secure:
-        report['test'] = 'https'
+        report['check'] = 'https'
     else:
-        report['test'] = 'http'
+        report['check'] = 'http'
 
     if not('port' in params):
         if secure:
@@ -24,7 +24,7 @@ def httpcheck(cd, host, params, secure=False):
         else:
             params['port'] = 80
     else:
-        report['test'] += ':' + unicode(params['port'])
+        report['check'] += ':' + unicode(params['port'])
 
     if not('timeout' in params):
         params['timeout'] = 10
