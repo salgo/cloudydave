@@ -10,6 +10,13 @@ try:
 except ImportError:
     pass
 
+datastoremodules = None
+try:
+    from cloudydave.datastores import __all__ as datastoremodules
+    from cloudydave.datastores import *
+except ImportError:
+    pass
+
 
 class cloudydave:
     hostname = None
@@ -19,17 +26,23 @@ class cloudydave:
     datastores = None
     checkmodules = None
 
-    def __init__(self, checks):
+    def __init__(self, checks, datastores):
         self.hostname = socket.gethostname()
         self.testdt = datetime.utcnow()
         self.testdtepoc = self.testdt.strftime("%s")
         self.checks = checks
+        self.datastores = datastores
 
         # Load check modules
-        try:
-            self.checkmodules = checkmodules
-        except ImportError:
-            pass
+        self.checkmodules = checkmodules
+        self.datastoremodules = datastoremodules
+        self.ds = {}
+
+        for datastore in datastores:
+            if datastore in self.datastoremodules:
+                self.ds[datastore] = eval(datastore + '.' +
+                                          datastore.capitalize() +
+                                          'Datastore()')
 
     def log(self, msg):
         print "cloudydave::log:", msg
@@ -58,6 +71,8 @@ class cloudydave:
             else:
                 self.run_check(host, item)
 
+        self.save_result()
+
     def run_check(self, host, check, params=None):
         if params is None:
             params = {}
@@ -71,5 +86,10 @@ class cloudydave:
 
         return result
 
-    def log_result(self, report):
-        print report
+    def log_result(self, host, report):
+        for ds in self.ds:
+            self.ds[ds].log_result(host, report)
+
+    def save_result(self):
+        for ds in self.ds:
+            self.ds[ds].save()

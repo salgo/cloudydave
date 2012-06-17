@@ -9,3 +9,5 @@ checks = {'localhost': ['uptime',
                                  'status': 200,
                                  'check_str': '<!-- super cache -->'},
           'secure.littoralis.com': 'https'}
+
+datastores = {'debugprint': True}

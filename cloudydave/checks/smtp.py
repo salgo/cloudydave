@@ -25,6 +25,6 @@ class SmtpCheck(object):
         except:
             report['value'] = False
 
-        cd.log_result(report)
+        cd.log_result(host, report)
 
         return report['value']

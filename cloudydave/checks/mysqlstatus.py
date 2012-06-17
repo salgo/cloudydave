@@ -12,7 +12,6 @@ class MysqlstatusCheck(object):
 
         report = copy(cd.basereport)
         report['check'] = 'mysqlstatus'
-        result = {}
 
         bresult = False
 
@@ -34,14 +33,12 @@ class MysqlstatusCheck(object):
 
                 for stat in tresult:
                     if stat[0] in stats:
-                        result[stat[0]] = stat[1]
+                        report[stat[0]] = stat[1]
                 bresult = True
 
             except MySQLdb.OperationalError:
                 pass
 
-        for key in result:
-            report.update({'key': key, 'value': result[key]})
-            cd.log_result(report)
+        cd.log_result(host, report)
 
         return bresult

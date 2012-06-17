@@ -45,23 +45,21 @@ def httpcheck(cd, host, params, secure=False):
 
         status = getattr(response, 'status')
 
-        result['response_time'] = time.time() - start
-        result['status'] = status
+        report['response_time'] = time.time() - start
+        report['status'] = status
 
         if ('status' in params and status == params['status']) or\
            (status == 200 or status == 301 or status == 302):
             if 'check_str' in params:
                 if params['check_str'] in data:
-                    result['check_str'] = True
+                    report['check_str'] = True
                 else:
-                    result['check_str'] = False
-            result['result'] = True
+                    report['check_str'] = False
+            report['result'] = True
 
     except:
-        result['result'] = False
+        report['result'] = False
 
-    for key in result:
-        report.update({'key': key, 'value': result[key]})
-        cd.log_result(report)
+    cd.log_result(host, report)
 
-    return result['result']
+    return report['result']
