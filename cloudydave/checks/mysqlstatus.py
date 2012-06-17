@@ -11,34 +11,36 @@ class MysqlstatusCheck(object):
             return False
 
         report = copy(cd.basereport)
-        report['check'] = 'mysqlstatus'
-
         bresult = False
+
+        check = 'mysqlstatus'
 
         if not('port' in params):
             params['port'] = 3306
+        else:
+            check += ':' + params['report']
 
-            try:
-                db = MySQLdb.connect(host=host,
-                                     user=params['user'],
-                                     passwd=params['password'])
-                cursor = db.cursor()
-                cursor.execute("SHOW GLOBAL STATUS")
-                tresult = cursor.fetchall()
+        try:
+            db = MySQLdb.connect(host=host,
+                                 user=params['user'],
+                                 passwd=params['password'])
+            cursor = db.cursor()
+            cursor.execute("SHOW GLOBAL STATUS")
+            tresult = cursor.fetchall()
 
-                stats = ['Created_tmp_disk_tables', 'Connections',
-                         'Max_used_connections', 'Open_files',
-                         'Slow_queries', 'Table_locks_waited',
-                         'Threads_connected']
+            stats = ['Created_tmp_disk_tables', 'Connections',
+                     'Max_used_connections', 'Open_files',
+                     'Slow_queries', 'Table_locks_waited',
+                     'Threads_connected']
 
-                for stat in tresult:
-                    if stat[0] in stats:
-                        report[stat[0]] = stat[1]
-                bresult = True
+            for stat in tresult:
+                if stat[0] in stats:
+                    report[stat[0]] = stat[1]
+            bresult = True
 
-            except MySQLdb.OperationalError:
-                pass
+        except MySQLdb.OperationalError:
+            pass
 
-        cd.log_result(host, report)
+        cd.log_result(host, check, report)
 
         return bresult

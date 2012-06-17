@@ -53,12 +53,7 @@ class cloudydave:
         for host in self.checks:
             item = self.checks[host]
 
-            if host == 'localhost':
-                # No need to store it's localhost as the test host,
-                # that's assumed
-                self.basereport = {}
-            else:
-                self.basereport = {'testhost': host}
+            self.basereport = {}
 
             if isinstance(item, list):
                 for check in item:
@@ -86,9 +81,9 @@ class cloudydave:
 
         return result
 
-    def log_result(self, host, report):
+    def log_result(self, host, check, report):
         for ds in self.ds:
-            self.ds[ds].log_result(host, report)
+            self.ds[ds].log_result(host, check, report)
 
     def save_result(self):
         for ds in self.ds:

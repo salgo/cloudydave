@@ -8,6 +8,7 @@ checks = {'localhost': ['uptime',
           'www.littoralis.com': {'check': 'http',
                                  'status': 200,
                                  'check_str': '<!-- super cache -->'},
-          'secure.littoralis.com': 'https'}
+          'secure.littoralis.com': 'https',
+          'chef.salgo.net': {'check': 'http', 'port': 4040}}
 
 datastores = {'debugprint': True}

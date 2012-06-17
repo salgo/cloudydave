@@ -7,7 +7,6 @@ import re
 class UptimeCheck(object):
     def test(self, cd, host, params):
         report = copy(cd.basereport)
-        report['check'] = 'uptime'
 
         resultBool = False
 
@@ -26,6 +25,6 @@ class UptimeCheck(object):
             print traceback.format_exc()
             report['result'] = False
 
-        cd.log_result(host, report)
+        cd.log_result(host, 'uptime', report)
 
         return resultBool

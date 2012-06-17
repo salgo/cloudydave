@@ -11,12 +11,11 @@ def httpcheck(cd, host, params, secure=False):
         return False
 
     report = copy(cd.basereport)
-    result = {}
 
     if secure:
-        report['check'] = 'https'
+        check = 'https'
     else:
-        report['check'] = 'http'
+        check = 'http'
 
     if not('port' in params):
         if secure:
@@ -24,7 +23,7 @@ def httpcheck(cd, host, params, secure=False):
         else:
             params['port'] = 80
     else:
-        report['check'] += ':' + unicode(params['port'])
+        check += ':' + unicode(params['port'])
 
     if not('timeout' in params):
         params['timeout'] = 10
@@ -60,6 +59,6 @@ def httpcheck(cd, host, params, secure=False):
     except:
         report['result'] = False
 
-    cd.log_result(host, report)
+    cd.log_result(host, check, report)
 
     return report['result']

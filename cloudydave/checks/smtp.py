@@ -5,13 +5,13 @@ from copy import copy
 class SmtpCheck(object):
     def test(self, cd, host, params):
         report = copy(cd.basereport)
-        report['key'] = 'result'
-        report['check'] = 'smtp'
+
+        check = 'smtp'
 
         if not('port' in params):
             params['port'] = 25
         else:
-            report['check'] += ':' + unicode(params['port'])
+            check += ':' + unicode(params['port'])
 
         if not('timeout' in params):
             params['timeout'] = 10
@@ -21,10 +21,10 @@ class SmtpCheck(object):
                                   params['timeout'])
             server.helo(cd.hostname)
             server.quit()
-            report['value'] = True
+            report['result'] = True
         except:
-            report['value'] = False
+            report['result'] = False
 
-        cd.log_result(host, report)
+        cd.log_result(host, check, report)
 
-        return report['value']
+        return report['result']
