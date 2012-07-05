@@ -1,9 +1,13 @@
-"""print is a reference datastore that just prints out
+"""debugprint is a reference datastore that just prints out
 the data it's given!!!"""
 
 
 class DebugprintDatastore(object):
     results = {}
+    cd = False
+
+    def __init__(self, cd):
+        self.cd = cd
 
     def log_result(self, host, check, result):
         if not host in self.results:

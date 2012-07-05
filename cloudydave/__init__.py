@@ -42,7 +42,7 @@ class cloudydave:
             if datastore in self.datastoremodules:
                 self.ds[datastore] = eval(datastore + '.' +
                                           datastore.capitalize() +
-                                          'Datastore()')
+                                          'Datastore(self)')
 
     def log(self, msg):
         print "cloudydave::log:", msg

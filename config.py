@@ -9,6 +9,7 @@ checks = {'localhost': ['uptime',
                                  'status': 200,
                                  'check_str': '<!-- super cache -->'},
           'secure.littoralis.com': 'https',
-          'chef.salgo.net': {'check': 'http', 'port': 4040}}
+          'chef.salgo.net': {'check': 'http', 'port': 4040},
+          'cloud.salgo.net': 'http'}
 
-datastores = {'debugprint': True}
+datastores = {'debugprint': True, 'mongo': True}
