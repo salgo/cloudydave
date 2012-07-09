@@ -10,6 +10,8 @@ class DebugprintDatastore(object):
         self.cd = cd
 
     def log_result(self, host, check, result):
+        result['date'] = self.cd.testdt
+
         if not host in self.results:
             self.results[host] = {}
         self.results[host][check] = result
